@@ -1,9 +1,8 @@
-import { web } from './components/web';
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
-import { gemini, imageUrlToBase64 } from './components/gemini';
-import getReplyChain from './components/getReplyChain';
-import { setDiscordClient } from './tools/getDiscordInfo';
+import { web } from './components/web.js';
+import { gemini } from './components/gemini.js';
+import getReplyChain from './components/getReplyChain.js';
 
 const client = new Client({
   intents: [
@@ -21,8 +20,6 @@ client.once('clientReady', () => {
     console.error("致命的なエラー：client.user が未定義です。");
     process.exit(1);
   }
-
-  setDiscordClient(client);
 
   console.log("==============================");
   console.log(`Bot起動しました: ${client.user.tag}`);
@@ -52,7 +49,6 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-
   // ===================================ここから正常な処理===================================
   const typingInterval = setInterval(() => {// タイピングインジケーターを定期的に送信
     message.channel.sendTyping().catch(console.error);
@@ -60,71 +56,17 @@ client.on('messageCreate', async (message) => {
 
   // 質問を取得
   const ask = message.content;
-
   console.log(`質問: ${ask}`);
 
   // 直近のメッセージを取得（今の message は除外）
-  let fetchedMessages;
-
-  // 返信チェーン全てを取得
-  fetchedMessages = await getReplyChain(message);
-  /*if (message.channel.isThread()) {
-    // スレッド内：直前の20件
-    fetchedMessages = await message.channel.messages.fetch({
-      limit: 20,
-      before: message.id,
-    });
-
-  } else {
-    // 通常チャンネル：直前の10件
-    fetchedMessages = await message.channel.messages.fetch({
-      limit: 10,
-      before: message.id,
-    });
-
-  }*/
-
-  //console.log(fetchedMessages);
+  let history = await getReplyChain(message);
   
-  // Gemini に渡す会話履歴
-  const history: {
-    role: 'user' | 'model';
-    parts: { text: string }[];
-  }[] = [];
-
-  // role と content に分けて履歴を整形
-  fetchedMessages.forEach(msg => {
-
-    const name = msg.author.globalName ?? msg.author.username;
-
-    if (msg.author.id === client.user?.id) {// 羽毛の発言
-    
-      history.push({
-        role: 'model',
-        parts: [{ text: `${msg.content}` }],
-      });
-
-    } else {// 他者の発言
-      
-      history.push({
-        role: 'user',
-        parts: [{ text: `${name}:${msg.content}` }],
-      });
-    
-    }
-
-  });
-  // console.log(JSON.stringify(history, null, 2));
-  
-  // 画像を取得
-  const images: any[] = [];
+  // 画像を取得(URL)
+  const images: string[] = [];
   if (message.attachments.size > 0) {
     for (const [_, attachment] of message.attachments) {
-      if (attachment.contentType?.startsWith('image/')) {
-        const imageData = await imageUrlToBase64(attachment.url);
-        if (imageData) {
-          images.push(imageData);
-        }
+      if (attachment.contentType?.startsWith("image/")) {
+        images.push(attachment.url);
       }
     }
   }
@@ -139,12 +81,7 @@ client.on('messageCreate', async (message) => {
     while(tryon < 5) {// 最大5回まで再試行
       try {
         // Gemini API に質問＋履歴＋画像を送信
-        const result = await gemini(ask, history, images.length > 0 ? images : undefined, cachedToolResponses);
-
-        // ツール結果をキャッシュ
-        if (result.toolResponses) {
-          cachedToolResponses = result.toolResponses;
-        }
+        const result = await gemini(ask, history, images.length > 0 ? images : undefined);
 
         try {
         
