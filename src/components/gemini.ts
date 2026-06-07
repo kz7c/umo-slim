@@ -26,7 +26,6 @@ export async function gemini(
           text: 
           "SYSTEM: " + SYSTEM_PROMPT + "\n\n"
           + history.map(h => `${h.role.toUpperCase()}: ${h.content}`).join("\n") + "\n" 
-          + "user: "
           + ask 
         },
         ...((images ?? []).map((uri) => ({ type: "image" as const, uri })))
