@@ -1,14 +1,13 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, Intents } from 'discord.js';
 import { web } from './components/web.js';
 import { gemini } from './components/gemini.js';
 import getReplyChain from './components/getReplyChain.js';
 
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,          // サーバー関連イベント
-    GatewayIntentBits.GuildMessages,   // サーバー内メッセージ
-    GatewayIntentBits.MessageContent,  // メッセージ本文の取得
+    Intents.FLAGS.GUILDS,          // サーバー関連イベント
+    Intents.FLAGS.GUILD_MESSAGES,  // サーバー内メッセージ
   ],
 });
 
@@ -44,7 +43,7 @@ client.on('messageCreate', async (message) => {
   if (!message.mentions.has(client.user) || message.mentions.everyone) return;
 
   // テキストが送信できるチャンネルか確認
-  if (!message.channel.isTextBased()){
+  if (typeof message.channel.sendTyping !== 'function') {
     console.error("エラー：テキストが送信できないチャンネルからメッセージを受け取りました。");
     return;
   }
